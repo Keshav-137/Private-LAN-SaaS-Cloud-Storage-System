@@ -47,7 +47,7 @@ if not app.secret_key:
 cipher = Fernet(load_or_create_key(KEY_FILE))
 client = InsecureClient(app.config["HDFS_URL"], user=app.config["HDFS_USER"])
 
-HT# Drop-in replacement for HTML_TEMPLATE in app.py.
+# Drop-in replacement for HTML_TEMPLATE in app.py.
 # No backend changes needed: it uses the same routes (index, upload_file, download_file)
 # and the same variables (files, flashed messages).
 
