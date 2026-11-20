@@ -53,10 +53,11 @@ client = InsecureClient(app.config["HDFS_URL"], user=app.config["HDFS_USER"])
 
 HTML_TEMPLATE = r"""
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-bs-theme="light">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light dark">
     <title>Private SaaS Cloud - HDFS Controller</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
     <style>
@@ -69,11 +70,42 @@ HTML_TEMPLATE = r"""
             --teal-dark: #0a4f4b;
             --brass: #b7832f;
             --muted: #5b6b6e;
+            --drop-zone: #f7faf9;
+            --drop-hover: #e3f1ef;
+            --file-badge: #e4ecea;
+            --progress-track: #dbe5e3;
+        }
+        [data-bs-theme="dark"] {
+            --ink: #e7efed;
+            --paper: #111918;
+            --panel: #1a2423;
+            --line: #364744;
+            --teal: #55b7ae;
+            --teal-dark: #78cbc3;
+            --brass: #d7ad63;
+            --muted: #a7b7b4;
+            --drop-zone: #202b29;
+            --drop-hover: #263936;
+            --file-badge: #2c3c39;
+            --progress-track: #344541;
         }
         body { background: var(--paper); color: var(--ink); font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
         .vault-head { background: var(--ink); color: #f3f6f5; border-radius: 14px; padding: 1.75rem 2rem; }
+        [data-bs-theme="dark"] .vault-head { background: #080d0c; border: 1px solid var(--line); }
+        .vault-head-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }
         .vault-head h1 { font-size: 1.6rem; font-weight: 650; margin: 0; }
         .vault-head p { color: #a9bbbc; margin: .35rem 0 0; }
+        .theme-toggle {
+            flex: 0 0 auto;
+            border: 1px solid rgba(255, 255, 255, .24);
+            border-radius: 999px;
+            background: rgba(255, 255, 255, .08);
+            color: #fff;
+            min-width: 5.25rem;
+            padding: .38rem .75rem;
+            font-size: .85rem;
+        }
+        .theme-toggle:hover, .theme-toggle:focus { background: rgba(255, 255, 255, .16); color: #fff; }
         .vault-stats { display: flex; gap: 1.5rem; margin-top: 1.1rem; font-size: .9rem; color: #c9d6d6; }
         .vault-stats strong { color: #fff; font-size: 1.15rem; margin-right: .3rem; }
         .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 1.5rem; }
@@ -81,12 +113,12 @@ HTML_TEMPLATE = r"""
         #drop-zone {
             display: block; cursor: pointer; text-align: center;
             border: 2px dashed #9db3b0; border-radius: 10px;
-            padding: 2.2rem 1rem; background: #f7faf9;
+            padding: 2.2rem 1rem; background: var(--drop-zone);
             transition: border-color .15s, background .15s;
         }
         #drop-zone:hover, #drop-zone:focus-within { border-color: var(--teal); }
-        #drop-zone.dragging { border-color: var(--teal); background: #e3f1ef; }
-        #drop-zone.has-file { border-style: solid; border-color: var(--teal); background: #eaf5f3; }
+        #drop-zone.dragging { border-color: var(--teal); background: var(--drop-hover); }
+        #drop-zone.has-file { border-style: solid; border-color: var(--teal); background: var(--drop-hover); }
         #drop-zone input { position: absolute; width: 1px; height: 1px; opacity: 0; }
         #drop-title { font-weight: 600; }
         #drop-hint { color: var(--muted); font-size: .9rem; }
@@ -96,7 +128,7 @@ HTML_TEMPLATE = r"""
         .btn-vault:disabled { background: #7fa9a6; border-color: #7fa9a6; color: #fff; }
 
         #progress-wrap { display: none; margin-top: 1rem; }
-        .progress { height: 10px; background: #dbe5e3; }
+        .progress { height: 10px; background: var(--progress-track); }
         .progress-bar { background: var(--teal); transition: width .1s linear; }
         #progress-label { font-size: .9rem; color: var(--muted); margin-top: .4rem; }
 
@@ -104,7 +136,7 @@ HTML_TEMPLATE = r"""
         .file-badge {
             display: inline-flex; align-items: center; justify-content: center;
             width: 2.6rem; height: 2rem; border-radius: 6px; margin-right: .75rem;
-            background: #e4ecea; color: var(--teal-dark); font-size: .7rem; font-weight: 700;
+            background: var(--file-badge); color: var(--teal-dark); font-size: .7rem; font-weight: 700;
         }
         .file-row.just-added { animation: flash-in 1.6s ease-out; }
         @keyframes flash-in { from { background: #f6e7c6; } to { background: transparent; } }
@@ -126,8 +158,16 @@ HTML_TEMPLATE = r"""
 <main class="container py-4 py-md-5" style="max-width: 860px;">
 
     <header class="vault-head mb-4">
-        <h1>Private SaaS Cloud Controller</h1>
-        <p>SDG 9: Secure LAN storage with HDFS and encryption</p>
+        <div class="vault-head-top">
+            <div>
+                <h1>Private SaaS Cloud Controller</h1>
+                <p>SDG 9: Secure LAN storage with HDFS and encryption</p>
+            </div>
+            <button id="theme-toggle" type="button" class="theme-toggle" aria-label="Switch to dark mode">
+                <span id="theme-icon" aria-hidden="true">&#9790;</span>
+                <span id="theme-label">Dark</span>
+            </button>
+        </div>
         <div class="vault-stats">
             <span><strong id="stat-count">{{ files|length }}</strong>files in the vault</span>
             <span><strong>AES</strong>encrypted before storage</span>
@@ -209,6 +249,42 @@ HTML_TEMPLATE = r"""
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
 (function () {
+    var themeToggle = document.getElementById('theme-toggle');
+    var themeIcon = document.getElementById('theme-icon');
+    var themeLabel = document.getElementById('theme-label');
+    var savedTheme = null;
+
+    try {
+        savedTheme = localStorage.getItem('saas-theme');
+    } catch (error) {
+        savedTheme = null;
+    }
+
+    if (!savedTheme) {
+        savedTheme = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+            ? 'dark'
+            : 'light';
+    }
+
+    function applyTheme(theme) {
+        var isDark = theme === 'dark';
+        document.documentElement.setAttribute('data-bs-theme', isDark ? 'dark' : 'light');
+        themeToggle.setAttribute('aria-label', isDark ? 'Switch to light mode' : 'Switch to dark mode');
+        themeIcon.textContent = isDark ? '\u2600' : '\u263E';
+        themeLabel.textContent = isDark ? 'Light' : 'Dark';
+    }
+
+    applyTheme(savedTheme);
+    themeToggle.addEventListener('click', function () {
+        var nextTheme = document.documentElement.getAttribute('data-bs-theme') === 'dark' ? 'light' : 'dark';
+        applyTheme(nextTheme);
+        try {
+            localStorage.setItem('saas-theme', nextTheme);
+        } catch (error) {
+            // Theme persistence is optional when browser storage is unavailable.
+        }
+    });
+
     var form = document.getElementById('upload-form');
     var input = document.getElementById('file-input');
     var zone = document.getElementById('drop-zone');
